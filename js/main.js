@@ -34,6 +34,5 @@ async function afterLogin(){
  R=location.hash.slice(2)||'dash';
  me=await authRestore();
  if(me){await afterLogin()}
- else if(sb){try{const {data}=await sb.rpc('needs_setup');NEEDS_SETUP=data===true}catch(e){}}
  render()
 })();
