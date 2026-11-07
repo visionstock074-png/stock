@@ -95,7 +95,8 @@ const loginEmail = id => isEmail(id) ? String(id).trim().toLowerCase() : emailOf
 const authMsg = e => { const m = (e && e.message) || String(e);
   if (/invalid login/i.test(m)) return 'بيانات الدخول غير صحيحة';
   if (/already (been )?registered/i.test(m)) return 'اسم المستخدم مستخدم بالفعل';
-  if (/rate limit|too many/i.test(m)) return 'محاولات كثيرة، حاول لاحقاً';
+  if (/email rate limit|over_email/i.test(m)) return 'Supabase أوقف إرسال رسائل التأكيد مؤقتاً (حد الرسائل). الحل: أنشئ حساب المالك من Supabase > Authentication > Users > Add user مع تفعيل Auto Confirm، ثم اضغط «لدي حساب مالك»';
+  if (/rate limit|too many|only request this after/i.test(m)) return 'محاولات كثيرة، حاول بعد دقيقة';
   if (/signups? not allowed|signup.*disabled/i.test(m)) return 'التسجيل معطّل في Supabase — فعّل Email provider';
   if (/confirm email must be disabled/i.test(m)) return 'عطّل Confirm email من Supabase > Authentication > Providers > Email';
   if (/row-level security|permission denied/i.test(m)) return 'غير مصرّح لك بهذه العملية';
@@ -106,8 +107,15 @@ async function authLogin(username, password) {
   if (!sb) throw new Error('تعذّر الاتصال بـ Supabase');
   const {data, error} = await sb.auth.signInWithPassword({email: loginEmail(username), password});
   if (error) throw error;
-  const p = await loadProfile(data.user.id);
-  if (!p) { await sb.auth.signOut(); throw new Error('الحساب بدون صلاحيات — راجع المالك') }
+  let p = await loadProfile(data.user.id);
+  if (!p) {   /* owner account created from the Supabase dashboard: first login creates its admin profile (allowed only while no profile exists) */
+    let first = false; try { const r = await sb.rpc('needs_setup'); first = r.data === true } catch(e) {}
+    if (!first) { await sb.auth.signOut(); throw new Error('الحساب بدون صلاحيات — راجع المالك') }
+    const em = String((data.user && data.user.email) || loginEmail(username)).toLowerCase();
+    p = {id: data.user.id, username: em, name: em.split('@')[0] || 'المالك', role: 'admin'};
+    const x = await sb.from('profiles').insert(p); if (x.error) throw x.error;
+    NEEDS_SETUP = false;
+  }
   localStorage.mi_profile = JSON.stringify(p); return p }
 async function authSetup(email, name, password) {                       /* owner: real email */
   email = String(email).trim().toLowerCase();
