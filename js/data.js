@@ -94,6 +94,8 @@ const isEmail = x => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(x).trim());
 const loginEmail = id => isEmail(id) ? String(id).trim().toLowerCase() : emailOf(id);   /* '@' present => owner's real email */
 const authMsg = e => { const m = (e && e.message) || String(e);
   if (/invalid login/i.test(m)) return 'بيانات الدخول غير صحيحة';
+  if (/email not confirmed/i.test(m)) return 'الحساب غير مؤكَّد: في Supabase > Authentication > Users اضغط على المستخدم ثم Confirm user';
+  if (/schema cache|does not exist|relation .*profiles|profiles.*not found/i.test(m)) return 'لم يتم تشغيل ملف supabase.sql في Supabase بعد';
   if (/already (been )?registered/i.test(m)) return 'اسم المستخدم مستخدم بالفعل';
   if (/email rate limit|over_email/i.test(m)) return 'Supabase أوقف إرسال رسائل التأكيد مؤقتاً (حد الرسائل). الحل: أنشئ حساب المالك من Supabase > Authentication > Users > Add user مع تفعيل Auto Confirm، ثم اضغط «لدي حساب مالك»';
   if (/rate limit|too many|only request this after/i.test(m)) return 'محاولات كثيرة، حاول بعد دقيقة';
@@ -112,18 +114,11 @@ async function authLogin(username, password) {
     let first = false; try { const r = await sb.rpc('needs_setup'); first = r.data === true } catch(e) {}
     if (!first) { await sb.auth.signOut(); throw new Error('الحساب بدون صلاحيات — راجع المالك') }
     const em = String((data.user && data.user.email) || loginEmail(username)).toLowerCase();
-    p = {id: data.user.id, username: em, name: em.split('@')[0] || 'المالك', role: 'admin'};
+    const un = isEmail(username) ? em : String(username).trim().toLowerCase();
+    p = {id: data.user.id, username: un, name: un, role: 'admin'};
     const x = await sb.from('profiles').insert(p); if (x.error) throw x.error;
     NEEDS_SETUP = false;
   }
-  localStorage.mi_profile = JSON.stringify(p); return p }
-async function authSetup(email, name, password) {                       /* owner: real email */
-  email = String(email).trim().toLowerCase();
-  const {data, error} = await sb.auth.signUp({email, password});
-  if (error) throw error;
-  if (!data.session) throw new Error('confirm email must be disabled');
-  const p = {id: data.user.id, username: email, name: name || email, role: 'admin'};
-  const r = await sb.from('profiles').insert(p); if (r.error) throw r.error;
   localStorage.mi_profile = JSON.stringify(p); return p }
 async function authRestore() {
   if (!sb) return null;
