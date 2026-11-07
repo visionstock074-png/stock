@@ -52,25 +52,15 @@ async function login(){
  try{me=await authLogin($('#lu').value,$('#lp').value);sessionStorage.mi_try=0;await afterLogin();logAct('تسجيل دخول');go('dash');render()}
  catch(e){me=null;const n=(+sessionStorage.mi_try||0)+1;sessionStorage.mi_try=n;if(n>=5){sessionStorage.mi_lock=Date.now()+30000;sessionStorage.mi_try=0}$('#le').textContent=authMsg(e)}
 }
-async function setupOwner(){
- const e=$('#se').value.trim().toLowerCase(),p=$('#sp1').value;
- if(!isEmail(e))return $('#le').textContent='أدخل بريدًا إلكترونيًا صحيحًا للمالك';
- if(p.length<8)return $('#le').textContent='كلمة المرور 8 أحرف على الأقل';
- if(p!==$('#sp2').value)return $('#le').textContent='تأكيد كلمة المرور غير مطابق';
- try{me=await authSetup(e,$('#sn').value.trim(),p);NEEDS_SETUP=false;await afterLogin();logAct('إنشاء حساب المالك');go('dash');render()}
- catch(err){me=null;$('#le').textContent=authMsg(err)}
-}
-const showLogin=()=>{NEEDS_SETUP=false;render()};
 const offlineView=()=>`<div class="lg"><div class="av">م</div><h1>MediStock</h1><div class="card"><p>تعذّر تحميل مكتبة Supabase. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.</p><button class="btn pri blk" onclick="location.reload()">إعادة المحاولة</button></div></div>`;
 const loginView=()=>`<div class="lg"><div class="av">م</div><h1>MediStock</h1><p class="sub">إدارة المخزون الطبي</p><div class="card" style="text-align:start"><div class="fld"><label>اسم المستخدم (أو بريد المالك)</label><input id="lu" autocomplete="username" autocapitalize="none"></div><div class="fld"><label>كلمة المرور</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div><p id="le" style="color:var(--red);margin:0 0 8px"></p><button class="btn pri blk" onclick="login()">دخول</button></div></div>`;
-const setupView=()=>`<div class="lg"><div class="av">م</div><h1>MediStock</h1><p class="sub">إعداد أول تشغيل — أنشئ حساب مالك التطبيق</p><div class="card" style="text-align:start"><div class="fld"><label>الاسم</label><input id="sn"></div><div class="fld"><label>البريد الإلكتروني للمالك</label><input id="se" type="email" autocomplete="email" autocapitalize="none" placeholder="name@gmail.com"><div class="hint">للمالك فقط. باقي المستخدمين يدخلون باسم المستخدم وكلمة المرور.</div></div><div class="fld"><label>كلمة المرور (8 أحرف على الأقل)</label><input id="sp1" type="password" autocomplete="new-password"></div><div class="fld"><label>تأكيد كلمة المرور</label><input id="sp2" type="password" autocomplete="new-password"></div><p id="le" style="color:var(--red);margin:0 0 8px"></p><button class="btn pri blk" onclick="setupOwner()">إنشاء الحساب</button><button class="btn blk" style="margin-top:10px" onclick="showLogin()">لدي حساب مالك أنشأته من Supabase — تسجيل الدخول</button></div></div>`;
 async function logout(){await authLogout();me=null;render()}
 function dark(){document.documentElement.classList.toggle('dark');localStorage.mi_dark=document.documentElement.classList.contains('dark')?'1':'0';render()}
 const toggleDr=()=>{$('#dr').classList.toggle('on');$('#dov').classList.toggle('off')};
 
 /* Shell */
 function render(){
- if(!me){$('#app').innerHTML=!sb?offlineView():NEEDS_SETUP?setupView():loginView();return}
+ if(!me){$('#app').innerHTML=!sb?offlineView():loginView();return}
  const ok=MENU.filter(m=>me.role!=='viewer'||VIEW.includes(m[0]));
  if(R==='vform'?!can():!ok.some(m=>m[0]===R))R='dash';
  const nav=['dash','vouchers','items','used','expired','maint','deficits'].map(k=>ok.find(m=>m[0]===k)).filter(Boolean).slice(0,4);
