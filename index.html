@@ -3,9 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>MediStock — إدارة المخزون الطبي</title>
+<title>Vision Stock — إدارة المخزون الطبي</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vision Stock">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -14,11 +21,11 @@
 </head>
 <body>
 <div id="app"></div><div id="sh" hidden></div>
-<datalist id="dl-code"></datalist><datalist id="dl-rep"></datalist><datalist id="dl-hosp"></datalist><datalist id="dl-doc"></datalist>
-<script src="js/data.js"></script>
-<script src="js/core.js"></script>
-<script src="js/export.js"></script>
-<script src="js/pages.js"></script>
-<script src="js/main.js"></script>
+<datalist id="dl-code"></datalist><datalist id="dl-rep"></datalist><datalist id="dl-hosp"></datalist><datalist id="dl-doc"></datalist><datalist id="dl-eng"></datalist>
+<script src="data.js"></script>
+<script src="core.js"></script>
+<script src="export.js"></script>
+<script src="pages.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
