@@ -81,7 +81,7 @@ async function saveForm(t,id){
   else if(ty==='p')r.parts=[...document.querySelectorAll('#pts .bt')].map(e=>({name:e.querySelector('.p-n').value.trim(),serial:e.querySelector('.p-s').value.trim(),qty:+e.querySelector('.p-q').value||0})).filter(x=>x.name||x.serial||x.qty);
   else{const e=$('#f-'+k);r[k]=ty==='n'?+e.value:e.value}}
  if(!p.opt&&!String(r.name||'').trim())return alert('الاسم مطلوب');
- await save(t,r);logAct((id?'تعديل ':'إضافة ')+p.t);closeSheet();render();
+ await save(t,r);logAct((id?'تعديل ':'إضافة ')+p.t);closeSheet();render();if(t==='items')sweepExpired();
  if(t==='deficits'&&!id&&waList().length&&confirm('تم الحفظ. إبلاغ الإدارة الآن عبر واتساب؟'))wa(`📋 طلب نقص جديد: ${r.name} (الكمية ${r.qty||'-'})`,async()=>{r.notified=true;await save(t,r);render()})
 }
 
@@ -98,7 +98,9 @@ function wa(m,cb){
  sheet('اختر مَن يستلم التنبيه',l.map(c=>`<button class="opt" onclick="waTo('${c.id}')">${ic('send',16)} ${esc(c.name)} <small>${esc(c.phone)}</small></button>`).join(''));return true
 }
 function waTo(id){const c=D.contacts.find(x=>x.id===id);if(!c)return;waOpen(c.phone,WAMSG);closeSheet();const cb=WACB;WACB=null;cb&&cb()}
-function waAll(){const al=alerts();if(!al.length)return;let t='🔔 تنبيهات المخزن ('+al.length+')',n=0;for(const x of al){if((t+'\n'+x.m).length>1400)break;t+='\n'+x.m;n++}if(n<al.length)t+='\n… و'+(al.length-n)+' تنبيهات أخرى';wa(t)}
+const markN=async rid=>{const r=D.expired.find(x=>x.id===rid);if(r&&!r.notified){r.notified=true;await save('expired',r)}};
+function waAlert(i){const x=alerts()[i];if(!x)return;wa(x.m,x.rid?async()=>{await markN(x.rid);render()}:null)}
+function waAll(){const al=alerts();if(!al.length)return;let t='🔔 تنبيهات المخزن ('+al.length+')',n=0;for(const x of al){if((t+'\n'+x.m).length>1400)break;t+='\n'+x.m;n++}if(n<al.length)t+='\n… و'+(al.length-n)+' تنبيهات أخرى';const ids=al.slice(0,n).filter(x=>x.rid).map(x=>x.rid);wa(t,ids.length?async()=>{for(const id of ids)await markN(id);render()}:null)}
 async function addContact(){
  const n=$('#cn').value.trim(),p=$('#cp').value.replace(/\D/g,'');
  if(!n)return alert('اكتب اسم الشخص');
@@ -114,6 +116,7 @@ function alerts(){
  D.items.forEach(r=>{if(low(r))a.push({k:'r',m:`⚠️ مخزون منخفض: ${r.name} (${tot(r)})`});
   live(r).forEach(b=>{const d=days(b.exp);if(d<0)a.push({k:'r',m:`⛔ دفعة منتهية: ${r.name} — ${b.exp}`});else if(d<90)a.push({k:'a',m:`⏳ صلاحية قريبة: ${r.name} — ${b.exp} (${d} يوم)`})})});
  D.deficits.filter(d=>!d.notified).forEach(d=>a.push({k:'a',m:`📋 طلب نقص جديد: ${d.name} (${d.qty||'-'})`}));
+ D.expired.filter(r=>r.auto&&!r.notified).forEach(r=>a.push({k:'r',m:`⛔ نُقل تلقائياً إلى المنتهي: ${r.name} × ${r.qty} (${r.note||''})`,rid:r.id}));
  return a
 }
 
@@ -132,7 +135,7 @@ function dash(){
  +`<div class="card"><h3>${ic('search')} أداة بحث عن صنف</h3><small>ابحث بكود Odoo لعرض الكميات وتفصيل الصلاحيات — متاح لجميع الأدوار</small><input style="margin-top:10px" placeholder="ابحث بكود Odoo أو اسم الصنف..." oninput="lookup(this.value)"><div id="lk"></div></div>
  <div class="stats">${st('أصناف المخزون الرئيسي',it.length,pcs+' قطعة · '+nb+' دفعة','box','var(--p)')}${st('أجهزة مستخدمة',D.used.length,sum(D.used,'qty')+' قطعة بالعهدة','steth','#d97706')}${st('إذونات مفتوحة',D.vouchers.filter(v=>v.status==='temp'&&!v.archived).length,D.vouchers.filter(v=>v.status==='final').length+' نهائية','file','var(--mut)')}${st('منتهية / تالفة',D.expired.length,sum(D.expired,'qty')+' قطعة مسحوبة','alert','var(--red)')}${st('مع مهندس الصيانة',D.maint.filter(m=>mst(m)==='قيد الصيانة').length,D.maint.reduce((a,m)=>a+Math.max(0,mTot(m)-mRet(m)),0)+' قطعة لم تُستلم','wrench','#d97706')}${st('نواقص مفتوحة',D.deficits.filter(d=>!d.notified).length,D.deficits.length+' إجمالي','bell','var(--red)')}${st('مخزن الآلات',D.tools.length,D.tools.reduce((a,t)=>a+pSum(t),0)+' قطعة بداخلها','case','var(--p)')}${st('مخزون منخفض',it.filter(low).length,'أقل من الحد الأدنى','alert','var(--red)')}</div>
  <div class="card"><h3>${ic('trend')} حركة الإذونات <span class="badge" style="margin-inline-start:auto">6 أشهر</span></h3><div style="height:200px"><canvas id="ch"></canvas></div></div>
- <div class="card"><h3>${ic('bell')} سجل التنبيهات ${bg(al.length?'red':'',al.length)}</h3>${can()?waBar():''}${al.map((x,i)=>`<div class="al ${x.k}"><span class="ad">${ic(x.k==='r'?'alert':'bell',18)}</span><span class="am">${esc(x.m)}</span>${can()?`<button class="btn sm" onclick="wa(alerts()[${i}].m)">${ic('send',15)} إرسال</button>`:''}</div>`).join('')||'<div class="empty sm"><small>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة.</small></div>'}${can()&&al.length?`<button class="btn pri blk" style="margin-top:6px" onclick="waAll()">${ic('send',18)} إرسال الكل عبر واتساب</button>`:''}</div>
+ <div class="card"><h3>${ic('bell')} سجل التنبيهات ${bg(al.length?'red':'',al.length)}</h3>${can()?waBar():''}${al.map((x,i)=>`<div class="al ${x.k}"><span class="ad">${ic(x.k==='r'?'alert':'bell',18)}</span><span class="am">${esc(x.m)}</span>${can()?`<button class="btn sm" onclick="waAlert(${i})">${ic('send',15)} إرسال</button>`:''}</div>`).join('')||'<div class="empty sm"><small>لا توجد تنبيهات حالياً — كل شيء تحت السيطرة.</small></div>'}${can()&&al.length?`<button class="btn pri blk" style="margin-top:6px" onclick="waAll()">${ic('send',18)} إرسال الكل عبر واتساب</button>`:''}</div>
  <div class="card"><h3>${ic('box')} معدلات الطلب</h3>${seg([['most','الأكثر طلباً',''],['least','الأقل طلباً','']],DM,"DM='%';render()")}${dm.map(([n,q])=>`<div class="sr"><b class="pill">${q}</b><span>${esc(n)}</span></div>`).join('')||'<div class="empty sm"><b>لا يوجد صرف بعد</b><small>ستظهر هنا معدلات الطلب بعد إنشاء إذونات الصرف.</small></div>'}</div>
  <div class="card"><h3>${ic('file')} حالة الأصناف</h3>${seg([['main','الرئيسي',it.length],['used','المستخدم',D.used.length],['exp','المنتهي/التالف',D.expired.length]],DS,"DS='%';render()")}${dsRows[DS].join('')}</div></div>`
 }
@@ -387,3 +390,25 @@ async function mRecvSave(id){
  if(!n)return alert('اكتب عدد القطع المستلمة');
  r.lines=L;r.status=mst(r);await save('maint',r);logAct('استلام من الصيانة '+(r.no||''));closeSheet();render()
 }
+
+
+/* ===== Expired batches move automatically from the main stock to "المنتهي / التالف" ===== */
+let SWEEPING=false;
+function toast(m){const e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),9000)}
+async function sweepExpired(){
+ if(SWEEPING||!me||!can())return 0;
+ SWEEPING=true;const moved=[];
+ try{
+  for(const it of [...D.items]){
+   const gone=(it.batches||[]).filter(b=>+b.qty>0&&b.exp&&days(b.exp)<0);
+   if(!gone.length)continue;
+   for(const b of gone){
+    const id='x_'+String(it.id).replace(/\W/g,'').slice(0,8)+'_'+b.exp+'_'+String(b.no||'').replace(/\W/g,'').slice(0,10);   /* same batch => same record, so two devices never duplicate it */
+    const old=D.expired.find(x=>x.id===id);
+    const rec=old?{...old,qty:Math.max(+old.qty||0,+b.qty)}:{id,name:it.name,code:it.code||it.odoo||'',qty:+b.qty,reason:'منتهي الصلاحية',date:today(),custody:'إدارة المخزون',ref:'نقل تلقائي',note:`دفعة ${b.no?b.no+' · ':''}صلاحية ${b.exp}`,auto:true,notified:false,iid:it.id};
+    await save('expired',rec);moved.push(`${it.name} × ${b.qty}`)}
+   it.batches=it.batches.filter(b=>!gone.includes(b));
+   await save('items',it)}
+ }finally{SWEEPING=false}
+ if(moved.length){logAct('نقل تلقائي للمنتهي: '+moved.length+' دفعة');toast('⛔ نُقل '+moved.length+' صنف منتهي الصلاحية من المخزون الرئيسي إلى المنتهي/التالف: '+moved.slice(0,3).join('، ')+(moved.length>3?'…':''));if(typeof idle==='function'&&idle())render()}
+ return moved.length}

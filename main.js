@@ -26,7 +26,7 @@ async function resync(){
  if(!me)return;
  let p;try{p=await loadProfile(me.id)}catch(e){p=me}
  if(!p){await logout();return}          /* my access was removed */
- me=p;await loadUsers().catch(()=>{});await pull();if(idle())render()
+ me=p;await loadUsers().catch(()=>{});await pull();await sweepExpired();if(idle())render()
 }
 let RT=false;
 function startRealtime(){ /* other devices' changes appear without reload */
@@ -42,6 +42,7 @@ async function afterLogin(){
  await loadUsers().catch(()=>{});
  await Promise.race([pull(),sleep(6000)]);
  if(can()&&!D.contacts.length&&localStorage.mi_wa){await save('contacts',{name:'الإدارة',phone:localStorage.mi_wa.replace(/\D/g,'')});localStorage.removeItem('mi_wa')}
+ await sweepExpired();
  startRealtime()
 }
 (async()=>{
@@ -51,3 +52,4 @@ async function afterLogin(){
  if(me){await afterLogin()}
  render()
 })();
+setInterval(()=>{if(me)sweepExpired()},30*60*1000);   /* keep checking while the app stays open */
